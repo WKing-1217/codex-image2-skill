@@ -1,4 +1,4 @@
-b68f60676368d82dcd9d3ad05cbe555d6fcde9eb51acf54ff208e3385721820f  codex-image2/bin/codex-image2-darwin-amd64
-e8cbe9669d8c8ac38d4e41e57c1f49b2ad046f5af5c6bb20ad3fab2e24dd2022  codex-image2/bin/codex-image2-darwin-arm64
-21ecbb3f36160916a6b8e25c38b3f3304bdfd4dc5de149fde0fa8ee8fb4bb65b  codex-image2/bin/codex-image2-windows-amd64.exe
-3a84c8742ac3580402520e2e5687b7495d6216e2eaf8871ff8f8d6153f2d6c35  codex-image2/bin/codex-image2-windows-arm64.exe
+1432225bb3f8df14f8112b8b7f8dca2a33a3d9ed584acbec6a16ef1f60f821d3  codex-image2/bin/codex-image2-darwin-amd64
+85c4a1dab231671d99fd5a989b44266c45fc71032883c81af3d1151dcaa560bb  codex-image2/bin/codex-image2-darwin-arm64
+bb4c884d2144376a0624d8dd50bb4d67587842fabc275fe98d12bfd3e6be19b1  codex-image2/bin/codex-image2-windows-amd64.exe
+a842813f17507a4caa9d8180ed3ed7b5216d589fe47791d180c3e6f19c72e284  codex-image2/bin/codex-image2-windows-arm64.exe

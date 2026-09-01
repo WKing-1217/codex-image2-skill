@@ -16,6 +16,6 @@ func deleteStoredAPIKey() error {
 	return errCredentialNotFound
 }
 
-func runSetupDialog(string) (setupInput, error) {
+func runSetupDialog() (setupInput, error) {
 	return setupInput{}, errors.New("the local secure setup wizard is currently available on Windows only; configure CODEX_API_URL and CODEX_API_KEY locally")
 }

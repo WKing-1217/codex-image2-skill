@@ -103,7 +103,7 @@ Read [references/batch-format.md](references/batch-format.md) before preparing a
 
 - Prefer the Windows secure setup over environment variables for ordinary users.
 - Environment variables remain supported and override saved configuration.
-- Never silently choose an API host. On first setup, leave the API URL empty and require the user to enter the address supplied by their API provider. A previously saved URL or an explicit `CODEX_API_URL` may be shown again during reconfiguration.
+- Never silently choose or display an API host in the setup window. Keep the API URL field empty every time setup opens, even when a saved URL or `CODEX_API_URL` exists, and require the user to enter the address supplied by their API provider.
 - Allow HTTP only for localhost; require HTTPS for remote hosts.
 - Default to model `gpt-image-2`, size `1024x1024`, and quality `auto`.
 - Use `--dry-run` to validate a request without network access or a Key.

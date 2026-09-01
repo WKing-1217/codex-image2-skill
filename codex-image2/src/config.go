@@ -167,21 +167,6 @@ func clearAPIConfig() error {
 	return removeSettings()
 }
 
-func setupInitialURL() string {
-	settingsURL := ""
-	if settings, err := readSettings(); err == nil && strings.TrimSpace(settings.APIURL) != "" {
-		settingsURL = settings.APIURL
-	}
-	return selectSetupInitialURL(os.Getenv("CODEX_API_URL"), settingsURL)
-}
-
-func selectSetupInitialURL(environmentURL, savedURL string) string {
-	if value := strings.TrimSpace(environmentURL); value != "" {
-		return value
-	}
-	return strings.TrimSpace(savedURL)
-}
-
 func configStatus() map[string]any {
 	result := map[string]any{"configured": false}
 	settings, settingsErr := readSettings()

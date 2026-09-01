@@ -9,14 +9,14 @@
 Windows 用户只需把下面整行发给 Codex：
 
 ```text
-请安装并初始化这个 Skill：https://github.com/WKing-1217/codex-image2-skill；如果权限不足，请提示我开启“完全访问”；安装后运行本地安全配置向导，不要让我在聊天中发送 API 密钥，配置成功后立即生成并展示一张测试图片。
+请安装并初始化这个 Skill：https://github.com/WKing-1217/codex-image2-skill
 ```
 
 接下来：
 
 1. 如果 Codex 提示权限不足，请由用户手动开启“完全访问”后让它继续。Skill 不能替用户修改权限。
 2. 安装完成后会弹出“Codex Image2 安全配置”窗口。
-3. API 地址不会预填，请填写 API 服务商提供的完整地址。
+3. API 地址每次都会保持空白，请填写 API 服务商提供的完整地址。
 4. 在隐藏输入框填写 API Key，然后点击“保存并测试”。
 5. 程序会立即生成一张低质量测试图片，Codex 随后展示结果，不需要重启。
 

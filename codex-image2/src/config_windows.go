@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -122,7 +121,7 @@ func deleteWindowsCredential(targetName string) error {
 	return nil
 }
 
-func runSetupDialog(initialURL string) (setupInput, error) {
+func runSetupDialog() (setupInput, error) {
 	command := exec.Command(
 		"powershell.exe",
 		"-NoProfile",
@@ -131,7 +130,6 @@ func runSetupDialog(initialURL string) (setupInput, error) {
 		"-WindowStyle", "Hidden",
 		"-Command", setupDialogPowerShell,
 	)
-	command.Env = append(os.Environ(), "CODEX_IMAGE2_SETUP_INITIAL_URL="+initialURL)
 	command.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	output, err := command.Output()
 	if err != nil {
@@ -191,7 +189,6 @@ $form.Controls.Add($urlLabel)
 $urlBox = New-Object System.Windows.Forms.TextBox
 $urlBox.Location = New-Object System.Drawing.Point(30, 107)
 $urlBox.Size = New-Object System.Drawing.Size(500, 25)
-$urlBox.Text = $env:CODEX_IMAGE2_SETUP_INITIAL_URL
 $form.Controls.Add($urlBox)
 
 $keyLabel = New-Object System.Windows.Forms.Label
@@ -231,11 +228,7 @@ $ok.Add_Click({
     $form.Close()
 })
 
-if ([string]::IsNullOrWhiteSpace($urlBox.Text)) {
-    $urlBox.Select()
-} else {
-    $keyBox.Select()
-}
+$urlBox.Select()
 $result = $form.ShowDialog()
 if ($result -ne [System.Windows.Forms.DialogResult]::OK) { exit 10 }
 

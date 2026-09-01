@@ -585,7 +585,7 @@ func runSetup(argv []string) error {
 		return err
 	}
 
-	input, err := runSetupDialog(setupInitialURL())
+	input, err := runSetupDialog()
 	if err != nil {
 		return err
 	}

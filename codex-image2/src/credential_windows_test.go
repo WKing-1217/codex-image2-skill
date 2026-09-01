@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 )
@@ -39,5 +40,13 @@ func TestSetupDialogPowerShellParses(t *testing.T) {
 	command.Env = append(os.Environ(), "CODEX_IMAGE2_TEST_SCRIPT="+setupDialogPowerShell)
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("PowerShell setup dialog script did not parse: %v\n%s", err, output)
+	}
+}
+
+func TestSetupDialogDoesNotPrefillAPIURL(t *testing.T) {
+	for _, forbidden := range []string{"$urlBox.Text =", "CODEX_IMAGE2_SETUP_"} {
+		if strings.Contains(strings.ToLower(setupDialogPowerShell), strings.ToLower(forbidden)) {
+			t.Fatalf("setup dialog contains forbidden API URL prefill marker %q", forbidden)
+		}
 	}
 }
