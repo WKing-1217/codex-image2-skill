@@ -50,6 +50,18 @@ func TestEndpoint(t *testing.T) {
 	}
 }
 
+func TestSelectSetupInitialURLHasNoProviderDefault(t *testing.T) {
+	if got := selectSetupInitialURL("", ""); got != "" {
+		t.Fatalf("selectSetupInitialURL() = %q, want an empty first-run value", got)
+	}
+	if got := selectSetupInitialURL(" https://environment.example/v1 ", "https://saved.example/v1"); got != "https://environment.example/v1" {
+		t.Fatalf("environment URL did not take precedence: %q", got)
+	}
+	if got := selectSetupInitialURL("", " https://saved.example/v1 "); got != "https://saved.example/v1" {
+		t.Fatalf("saved URL was not reused: %q", got)
+	}
+}
+
 func TestHTTPStatusErrorDoesNotIncludeResponseBody(t *testing.T) {
 	if got := httpStatusError(401); got != "API authentication failed; run setup again and check the API key" {
 		t.Fatalf("unexpected status message: %q", got)

@@ -122,7 +122,7 @@ func deleteWindowsCredential(targetName string) error {
 	return nil
 }
 
-func runSetupDialog(defaultURL string) (setupInput, error) {
+func runSetupDialog(initialURL string) (setupInput, error) {
 	command := exec.Command(
 		"powershell.exe",
 		"-NoProfile",
@@ -131,7 +131,7 @@ func runSetupDialog(defaultURL string) (setupInput, error) {
 		"-WindowStyle", "Hidden",
 		"-Command", setupDialogPowerShell,
 	)
-	command.Env = append(os.Environ(), "CODEX_IMAGE2_SETUP_DEFAULT_URL="+defaultURL)
+	command.Env = append(os.Environ(), "CODEX_IMAGE2_SETUP_INITIAL_URL="+initialURL)
 	command.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	output, err := command.Output()
 	if err != nil {
@@ -183,7 +183,7 @@ $note.Location = New-Object System.Drawing.Point(27, 53)
 $form.Controls.Add($note)
 
 $urlLabel = New-Object System.Windows.Forms.Label
-$urlLabel.Text = 'API 地址'
+$urlLabel.Text = 'API 地址（请向服务商获取）'
 $urlLabel.AutoSize = $true
 $urlLabel.Location = New-Object System.Drawing.Point(27, 86)
 $form.Controls.Add($urlLabel)
@@ -191,7 +191,7 @@ $form.Controls.Add($urlLabel)
 $urlBox = New-Object System.Windows.Forms.TextBox
 $urlBox.Location = New-Object System.Drawing.Point(30, 107)
 $urlBox.Size = New-Object System.Drawing.Size(500, 25)
-$urlBox.Text = $env:CODEX_IMAGE2_SETUP_DEFAULT_URL
+$urlBox.Text = $env:CODEX_IMAGE2_SETUP_INITIAL_URL
 $form.Controls.Add($urlBox)
 
 $keyLabel = New-Object System.Windows.Forms.Label
@@ -231,7 +231,11 @@ $ok.Add_Click({
     $form.Close()
 })
 
-$keyBox.Select()
+if ([string]::IsNullOrWhiteSpace($urlBox.Text)) {
+    $urlBox.Select()
+} else {
+    $keyBox.Select()
+}
 $result = $form.ShowDialog()
 if ($result -ne [System.Windows.Forms.DialogResult]::OK) { exit 10 }
 

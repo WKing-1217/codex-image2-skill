@@ -10,10 +10,7 @@ import (
 	"strings"
 )
 
-const (
-	suggestedAPIURL  = "https://api.wk1ng.com/v1"
-	credentialTarget = "codex-image2/CODEX_API_KEY"
-)
+const credentialTarget = "codex-image2/CODEX_API_KEY"
 
 var errCredentialNotFound = errors.New("credential not found")
 
@@ -170,14 +167,19 @@ func clearAPIConfig() error {
 	return removeSettings()
 }
 
-func setupDefaults() string {
-	if value := strings.TrimSpace(os.Getenv("CODEX_API_URL")); value != "" {
+func setupInitialURL() string {
+	settingsURL := ""
+	if settings, err := readSettings(); err == nil && strings.TrimSpace(settings.APIURL) != "" {
+		settingsURL = settings.APIURL
+	}
+	return selectSetupInitialURL(os.Getenv("CODEX_API_URL"), settingsURL)
+}
+
+func selectSetupInitialURL(environmentURL, savedURL string) string {
+	if value := strings.TrimSpace(environmentURL); value != "" {
 		return value
 	}
-	if settings, err := readSettings(); err == nil && strings.TrimSpace(settings.APIURL) != "" {
-		return settings.APIURL
-	}
-	return suggestedAPIURL
+	return strings.TrimSpace(savedURL)
 }
 
 func configStatus() map[string]any {

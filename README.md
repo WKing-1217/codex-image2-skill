@@ -16,7 +16,7 @@ Windows 用户只需把下面整行发给 Codex：
 
 1. 如果 Codex 提示权限不足，请由用户手动开启“完全访问”后让它继续。Skill 不能替用户修改权限。
 2. 安装完成后会弹出“Codex Image2 安全配置”窗口。
-3. API 地址默认填写 `https://api.wk1ng.com/v1`，可按实际服务修改。
+3. API 地址不会预填，请填写 API 服务商提供的完整地址。
 4. 在隐藏输入框填写 API Key，然后点击“保存并测试”。
 5. 程序会立即生成一张低质量测试图片，Codex 随后展示结果，不需要重启。
 
@@ -24,13 +24,7 @@ Windows 用户只需把下面整行发给 Codex：
 
 ## 模型权限
 
-API Key 所属分组必须支持 `gpt-image-2`。以当前服务配置为准，支持的三个分组是：
-
-- GPT Pro 分组
-- Pro 订阅分组
-- Max 订阅分组
-
-如果分组不支持，测试时会明确提示模型或订阅权限不可用。
+API Key 所属账户或分组必须支持 `gpt-image-2`。具体权限请向所使用的 API 服务商确认；如果不支持，测试时会提示模型或订阅权限不可用。
 
 ## 功能
 
@@ -58,9 +52,11 @@ Windows 第一版使用：
 环境变量仍然兼容，并且优先级高于本地安全配置：
 
 ```powershell
-[Environment]::SetEnvironmentVariable("CODEX_API_URL", "https://api.wk1ng.com/v1", "User")
+[Environment]::SetEnvironmentVariable("CODEX_API_URL", "https://api.example.com/v1", "User")
 [Environment]::SetEnvironmentVariable("CODEX_API_KEY", "你的API密钥", "User")
 ```
+
+上面的 `api.example.com` 只是占位示例，必须替换成自己的 API 服务地址。
 
 环境变量方式主要用于自动化或旧版兼容。给普通客户时优先使用安全配置窗口。
 
@@ -153,9 +149,11 @@ Codex 通常会自动发现新 Skill。如果没有出现在 Skill 列表中，�
 macOS 原生程序仍支持生图和改图，第一版安全配置窗口仅支持 Windows。macOS 用户需要在启动 Codex 的环境中配置：
 
 ```bash
-export CODEX_API_URL="https://api.wk1ng.com/v1"
+export CODEX_API_URL="https://api.example.com/v1"
 export CODEX_API_KEY="你的API密钥"
 ```
+
+上面的 `api.example.com` 只是占位示例，必须替换成自己的 API 服务地址。
 
 如果可执行权限没有保留：
 
@@ -230,10 +228,6 @@ API 地址必须使用 HTTPS；只有 `localhost` 和本机回环地址允许 HT
 - 卸载 Skill 前可以运行 `reset --yes` 删除本地 API 地址和 Windows 凭据。
 - 发布包内的 `SHA256SUMS.txt` 可用于核对四个原生程序的 SHA-256。
 - 从 GitHub 下载的未签名程序可能触发 Windows SmartScreen；面向大量客户分发时建议给发布二进制做代码签名。
-
-## 其他方式
-
-也可以直接使用 [ffzd.ai](https://ffzd.ai/) 进行文生图和图生图。
 
 ## License
 
