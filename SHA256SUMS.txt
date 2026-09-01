@@ -1,0 +1,4 @@
+05e9a68f94da7a9f5b67453ccec871c1864f7ae6b4d6498f99c3158066d42c25  codex-image2/bin/codex-image2-darwin-amd64
+ada8954220ddd2594b4209a65c37dff77dec47dd4a704c5bd7d3ab216feba201  codex-image2/bin/codex-image2-darwin-arm64
+c3133005712c1a940981bde520a9a4139c0081a8ce416d7b71830b190c9544a6  codex-image2/bin/codex-image2-windows-amd64.exe
+2b3d9d5f3aa2bf983e97e9bfc0e6fbc667666031dae02180b1067568389c94dd  codex-image2/bin/codex-image2-windows-arm64.exe

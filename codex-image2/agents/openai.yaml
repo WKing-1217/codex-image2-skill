@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Image2"
+  short_description: "Securely configure an API, then generate or edit images"
+  default_prompt: "Use $codex-image2 to securely configure my image API if needed, then generate and display an image."
