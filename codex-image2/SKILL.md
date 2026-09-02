@@ -18,7 +18,9 @@ Resolve these paths relative to this `SKILL.md`. On macOS, run `chmod +x <execut
 
 ## First-time setup on Windows
 
-Before the first image request, run `status`. If `configured` is false, run `setup`:
+When the user asks to **install and initialize**, initialize, or reconfigure this skill, ALWAYS execute `setup` after installation/update. This includes an already installed skill and an existing configuration. Do not skip the window based on `configured: true`, `initialized: true`, environment variables, or a successful dry run. Do not merely print a setup command for the user when you can execute it yourself.
+
+For an ordinary image request on Windows, run `status` first. If `initialized` is not true (including a missing field in an older executable), run `setup`. `configured` only means configuration values exist; it does not prove authentication or image generation works.
 
 ```powershell
 & "<skill-dir>\bin\codex-image2-windows-amd64.exe" setup
@@ -26,11 +28,15 @@ Before the first image request, run `status`. If `configured` is false, run `set
 
 The executable opens a local window for the API URL and API Key. Tell the user to enter the Key only in that window. Never ask for or accept the Key in chat, a prompt, a command argument, a file, or a log.
 
-The setup command saves the URL in the user configuration directory, saves the Key in Windows Credential Manager, and generates a low-quality test image. Inspect and display the test image from `test_image.outputs`. No Codex restart is required.
+Tell the user that setup will generate one low-quality test image and their provider may charge for it. The setup command saves the URL in the user configuration directory and the Key in Windows Credential Manager as unverified, then makes one real image-generation request. Only after decoding the returned image, saving it, and verifying the saved file does it record `initialized: true`. `setup --no-test` is not supported.
+
+Wait for the command to finish. Only report initialization complete when `setup` exits successfully, returns `initialized: true`, and you have inspected and displayed the newly generated image from `test_image.outputs` using its absolute path. A saved key, `status`, `--dry-run`, an HTTP 200 without a valid image, or an old test image is not sufficient. No Codex restart is required for this configuration or test.
+
+On cancellation, report that this initialization was cancelled; do not call it successful. On a failed test, say initialization is incomplete and explain the sanitized error. During initialization, if the URL/Key needs correction, explain the problem and open `setup` again so the user can correct it locally. Never repeat requests with unchanged invalid credentials or loop through setup automatically; if the same error recurs, stop and ask the user to resolve it before retrying. Do not promise to finish while credentials, permissions, or the provider remain unavailable.
 
 If filesystem or network access is blocked, explain that the user must manually grant the needed permission or switch the task to full access, then continue after they do so. The skill cannot change its own permissions. Do not repeatedly retry while permission remains blocked.
 
-The Windows setup window is not available on macOS in this release. On macOS, require `CODEX_API_URL` and `CODEX_API_KEY` to already be present in the executable's environment; never collect them in chat.
+The Windows setup window is not available on macOS in this release. On macOS, require `CODEX_API_URL` and `CODEX_API_KEY` to already be present in the executable's environment; never collect them in chat. Environment-only `status` does not persist an initialization marker. To validate macOS initialization, run a real `generate` request for one low-quality test image, inspect it, and display it; do not claim the Windows setup workflow succeeded.
 
 ## Workflow
 
@@ -102,7 +108,8 @@ Read [references/batch-format.md](references/batch-format.md) before preparing a
 ## Configuration and safety
 
 - Prefer the Windows secure setup over environment variables for ordinary users.
-- Environment variables remain supported and override saved configuration.
+- Saved secure configuration takes priority as one URL/Key pair. Environment variables are a fallback only when no saved URL exists; never combine values from the two sources. If a saved pair is incomplete or a save was interrupted, run setup rather than silently using an environment key.
+- `status` never contacts the API. `initialized: true` records a previous successful setup test, not a guarantee that a key remains valid forever. Legacy saved settings and environment-only settings start unverified.
 - Never silently choose or display an API host in the setup window. Keep the API URL field empty every time setup opens, even when a saved URL or `CODEX_API_URL` exists, and require the user to enter the address supplied by their API provider.
 - Allow HTTP only for localhost; require HTTPS for remote hosts.
 - Default to model `gpt-image-2`, size `1024x1024`, and quality `auto`.
@@ -115,8 +122,8 @@ Read [references/batch-format.md](references/batch-format.md) before preparing a
 ## Failure handling
 
 - Do not retry authentication, validation, permission, or ordinary 4xx errors.
-- For 401, ask the user to rerun the local setup window and verify the Key.
+- For 401 during initialization, follow the correction flow above and execute the local setup window instead of only handing the user a command. For 401 during ordinary generation, explain the authentication failure and ask whether to reopen setup. Never ask for the Key in chat.
 - For 403 or 404, explain that the subscription group, model access, or API URL may not support `gpt-image-2`.
-- The CLI retries timeouts, 429, 500, 502, 503, 504, and 524 with bounded backoff.
+- Normal image commands retry timeouts, 429, 500, 502, 503, 504, and 524 with bounded backoff. Setup makes only one generation attempt per submission to reduce duplicate charges; after a timeout, say the server may still have processed the request before offering a retry.
 - On repeated timeout, suggest `--quality low`, a square size, fewer concurrent jobs, or a later retry.
 - Never expose an Authorization header, full Key, server response body, or secrets from the environment.

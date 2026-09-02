@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,9 +15,20 @@ import (
 	"time"
 )
 
+func testPNG(t *testing.T) []byte {
+	t.Helper()
+	picture := image.NewRGBA(image.Rect(0, 0, 8, 8))
+	picture.Set(0, 0, color.RGBA{R: 255, A: 255})
+	var buffer bytes.Buffer
+	if err := png.Encode(&buffer, picture); err != nil {
+		t.Fatal(err)
+	}
+	return buffer.Bytes()
+}
+
 func TestGenerateConfiguredSavesImage(t *testing.T) {
 	const key = "test-secret-never-log"
-	wantImage := []byte("not-a-real-png-but-valid-api-bytes")
+	wantImage := testPNG(t)
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		if request.URL.Path != "/v1/images/generations" {
 			t.Errorf("request path = %q", request.URL.Path)

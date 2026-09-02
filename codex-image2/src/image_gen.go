@@ -10,6 +10,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -233,6 +237,11 @@ func saveImages(images [][]byte, paths []string) ([]string, error) {
 	if len(images) != len(paths) {
 		return nil, fmt.Errorf("API returned %d image(s), expected %d", len(images), len(paths))
 	}
+	for _, data := range images {
+		if err := validateImage(data); err != nil {
+			return nil, err
+		}
+	}
 	abs := make([]string, len(paths))
 	for i, path := range paths {
 		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
@@ -244,6 +253,20 @@ func saveImages(images [][]byte, paths []string) ([]string, error) {
 		abs[i], _ = filepath.Abs(path)
 	}
 	return abs, nil
+}
+
+func validateImage(data []byte) error {
+	config, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil || config.Width < 1 || config.Height < 1 {
+		return errors.New("API did not return a valid PNG, JPEG, or GIF image")
+	}
+	if int64(config.Width)*int64(config.Height) > 64*1024*1024 {
+		return errors.New("API image exceeds the 64 megapixel safety limit")
+	}
+	if _, _, err := image.Decode(bytes.NewReader(data)); err != nil {
+		return errors.New("API returned a damaged or incomplete image")
+	}
+	return nil
 }
 
 func generate(prompt, out string, args commonArgs) (map[string]any, error) {
@@ -577,50 +600,17 @@ func runBatch(argv []string) error {
 
 func runSetup(argv []string) error {
 	fs := flag.NewFlagSet("setup", flag.ContinueOnError)
-	var noTest bool
 	var out string
-	fs.BoolVar(&noTest, "no-test", false, "save configuration without generating a test image")
 	fs.StringVar(&out, "out", "", "test image output path")
 	if err := fs.Parse(argv); err != nil {
 		return err
 	}
-
-	input, err := runSetupDialog()
+	if fs.NArg() != 0 {
+		return errors.New("setup accepts only --out; a real test image is required")
+	}
+	result, err := initializeWithDialog(out, runSetupDialog, localConfigurationStore{})
 	if err != nil {
 		return err
-	}
-	config, err := validateSetupInput(input)
-	if err != nil {
-		return err
-	}
-	if err := saveAPIConfig(config); err != nil {
-		return err
-	}
-
-	result := map[string]any{
-		"configured": true,
-		"api_url":    config.BaseURL,
-		"credential": credentialTarget,
-		"summary":    storedConfigurationSummary(config),
-	}
-	if !noTest {
-		if out == "" {
-			out = filepath.Join(defaultOutDir, "setup-test-"+time.Now().Format("20060102-150405")+".png")
-		}
-		args := commonArgs{
-			model:       defaultModel,
-			size:        defaultSize,
-			quality:     "low",
-			n:           1,
-			outDir:      defaultOutDir,
-			maxAttempts: 3,
-			timeout:     150 * time.Second,
-		}
-		data, err := generateConfigured("A friendly orange cat wearing a small astronaut helmet on the moon, cinematic light, no text", out, args, config)
-		if err != nil {
-			return fmt.Errorf("configuration was saved, but the test image failed: %w", err)
-		}
-		result["test_image"] = data
 	}
 	printJSON(result)
 	return nil
@@ -648,7 +638,7 @@ func runReset(argv []string) error {
 	if err := clearAPIConfig(); err != nil {
 		return err
 	}
-	printJSON(map[string]any{"configured": false, "removed": true})
+	printJSON(map[string]any{"configured": false, "initialized": false, "removed": true})
 	return nil
 }
 

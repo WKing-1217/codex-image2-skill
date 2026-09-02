@@ -20,7 +20,54 @@ type apiConfig struct {
 }
 
 type savedSettings struct {
-	APIURL string `json:"api_url"`
+	APIURL       string `json:"api_url"`
+	SetupPending bool   `json:"setup_pending,omitempty"`
+	Initialized  bool   `json:"initialized"`
+	VerifiedAt   string `json:"verified_at,omitempty"`
+	TestImage    string `json:"test_image,omitempty"`
+}
+
+// Keep configuration access injectable so tests never touch a user's real key.
+type configurationStore interface {
+	readSettings() (savedSettings, error)
+	writeSettings(savedSettings) error
+	readKey() (string, error)
+	writeKey(string) error
+}
+
+type localConfigurationStore struct{}
+
+func (localConfigurationStore) readSettings() (savedSettings, error) { return readSettings() }
+func (localConfigurationStore) writeSettings(s savedSettings) error  { return writeSettings(s) }
+func (localConfigurationStore) readKey() (string, error)             { return readStoredAPIKey() }
+func (localConfigurationStore) writeKey(key string) error            { return writeStoredAPIKey(key) }
+
+type selectedConfiguration struct {
+	config   apiConfig
+	settings savedSettings
+	source   string
+}
+
+func selectConfiguration(store configurationStore, getenv func(string) string) (selectedConfiguration, error) {
+	settings, err := store.readSettings()
+	if err != nil {
+		return selectedConfiguration{}, err
+	}
+	if settings.SetupPending {
+		return selectedConfiguration{}, errors.New("secure configuration save was interrupted; run setup again")
+	}
+	if strings.TrimSpace(settings.APIURL) != "" {
+		key, err := store.readKey()
+		if err != nil && !errors.Is(err, errCredentialNotFound) {
+			return selectedConfiguration{}, err
+		}
+		// Never combine a saved URL with an environment key (or vice versa).
+		return selectedConfiguration{apiConfig{settings.APIURL, strings.TrimSpace(key)}, settings, "secure-settings"}, nil
+	}
+	return selectedConfiguration{
+		config: apiConfig{strings.TrimSpace(getenv("CODEX_API_URL")), strings.TrimSpace(getenv("CODEX_API_KEY"))},
+		source: "environment",
+	}, nil
 }
 
 type setupInput struct {
@@ -112,37 +159,21 @@ func endpoint(base, operation string) (string, error) {
 }
 
 func resolveAPIConfig(requireKey bool) (apiConfig, error) {
-	base := strings.TrimSpace(os.Getenv("CODEX_API_URL"))
-	if base == "" {
-		settings, err := readSettings()
-		if err != nil {
-			return apiConfig{}, err
-		}
-		base = settings.APIURL
-	}
-	base, err := normalizeAPIBase(base)
+	selected, err := selectConfiguration(localConfigurationStore{}, os.Getenv)
 	if err != nil {
 		return apiConfig{}, err
 	}
-
-	key := strings.TrimSpace(os.Getenv("CODEX_API_KEY"))
-	if key == "" {
-		key, err = readStoredAPIKey()
-		if errors.Is(err, errCredentialNotFound) {
-			err = nil
-			key = ""
-		}
-		if err != nil {
-			return apiConfig{}, err
-		}
+	base, err := normalizeAPIBase(selected.config.BaseURL)
+	if err != nil {
+		return apiConfig{}, err
 	}
-	if requireKey && key == "" {
+	if requireKey && selected.config.APIKey == "" {
 		return apiConfig{}, errors.New("API key is not configured; run setup and enter it in the local secure window")
 	}
-	return apiConfig{BaseURL: base, APIKey: key}, nil
+	return apiConfig{BaseURL: base, APIKey: selected.config.APIKey}, nil
 }
 
-func saveAPIConfig(config apiConfig) error {
+func saveAPIConfig(config apiConfig, store configurationStore) error {
 	base, err := normalizeAPIBase(config.BaseURL)
 	if err != nil {
 		return err
@@ -151,10 +182,15 @@ func saveAPIConfig(config apiConfig) error {
 	if key == "" {
 		return errors.New("API key must not be empty")
 	}
-	if err := writeStoredAPIKey(key); err != nil {
+	// Invalidate the old success marker BEFORE changing either member of the pair.
+	// If a write fails, the pending state blocks accidental use of a mixed pair.
+	if err := store.writeSettings(savedSettings{APIURL: base, SetupPending: true}); err != nil {
 		return err
 	}
-	if err := writeSettings(savedSettings{APIURL: base}); err != nil {
+	if err := store.writeKey(key); err != nil {
+		return err
+	}
+	if err := store.writeSettings(savedSettings{APIURL: base}); err != nil {
 		return err
 	}
 	return nil
@@ -168,47 +204,44 @@ func clearAPIConfig() error {
 }
 
 func configStatus() map[string]any {
-	result := map[string]any{"configured": false}
-	settings, settingsErr := readSettings()
-	base := strings.TrimSpace(os.Getenv("CODEX_API_URL"))
-	urlSource := "environment"
-	if base == "" {
-		base = settings.APIURL
-		urlSource = "saved-settings"
-	}
-	if settingsErr != nil {
-		result["settings_error"] = settingsErr.Error()
-	}
-	validBase := false
-	if base != "" {
-		normalized, err := normalizeAPIBase(base)
-		if err != nil {
-			result["api_url_error"] = err.Error()
-		} else {
-			base = normalized
-			validBase = true
-		}
-		result["api_url"] = base
-		result["api_url_source"] = urlSource
-	}
-
-	key := strings.TrimSpace(os.Getenv("CODEX_API_KEY"))
-	keySource := "environment"
-	if key == "" {
-		var err error
-		key, err = readStoredAPIKey()
-		keySource = "windows-credential-manager"
-		if err != nil && !errors.Is(err, errCredentialNotFound) {
-			result["credential_error"] = err.Error()
-		}
-	}
-	if key != "" && validBase {
-		result["configured"] = true
-		result["api_key_source"] = keySource
-	}
+	result := configurationStatus(localConfigurationStore{}, os.Getenv)
 	path, err := settingsPath()
 	if err == nil {
 		result["settings_path"] = path
+	}
+	return result
+}
+
+func configurationStatus(store configurationStore, getenv func(string) string) map[string]any {
+	result := map[string]any{"configured": false, "initialized": false, "network_checked": false}
+	selected, err := selectConfiguration(store, getenv)
+	if err != nil {
+		result["configuration_error"] = err.Error()
+		return result
+	}
+	result["configuration_source"] = selected.source
+	base, err := normalizeAPIBase(selected.config.BaseURL)
+	if err != nil {
+		result["api_url_error"] = err.Error()
+		return result
+	}
+	result["api_url"] = base
+	if selected.source == "secure-settings" {
+		result["api_url_source"] = "saved-settings"
+		result["api_key_source"] = "windows-credential-manager"
+	} else {
+		result["api_url_source"] = "environment"
+		result["api_key_source"] = "environment"
+	}
+	if selected.config.APIKey == "" {
+		return result
+	}
+	result["configured"] = true
+	settings := selected.settings
+	if selected.source == "secure-settings" && settings.Initialized && settings.VerifiedAt != "" && settings.TestImage != "" {
+		result["initialized"] = true
+		result["verified_at"] = settings.VerifiedAt
+		result["test_image"] = settings.TestImage
 	}
 	return result
 }
