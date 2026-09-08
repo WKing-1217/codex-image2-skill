@@ -18,6 +18,8 @@ Resolve these paths relative to this `SKILL.md`. On macOS, run `chmod +x <execut
 
 ## First-time setup on Windows
 
+The setup window must run on the user's normal Windows desktop. Before executing `setup`, verify that the user selected **Full access for the current task** in the composer. Enabling Full access in Settings is not enough; it must be the active mode for this task. The skill cannot select it for the user. Do not start setup in Ask for approval, Auto-review, a Windows sandbox, WSL, SSH, Codex cloud, or another headless environment.
+
 When the user asks to **install and initialize**, initialize, or reconfigure this skill, ALWAYS execute `setup` after installation/update. This includes an already installed skill and an existing configuration. Do not skip the window based on `configured: true`, `initialized: true`, environment variables, or a successful dry run. Do not merely print a setup command for the user when you can execute it yourself.
 
 For an ordinary image request on Windows, run `status` first. If `initialized` is not true (including a missing field in an older executable), run `setup`. `configured` only means configuration values exist; it does not prove authentication or image generation works.
@@ -35,6 +37,8 @@ Wait for the command to finish. Only report initialization complete when `setup`
 On cancellation, report that this initialization was cancelled; do not call it successful. On a failed test, say initialization is incomplete and explain the sanitized error. During initialization, if the URL/Key needs correction, explain the problem and open `setup` again so the user can correct it locally. Never repeat requests with unchanged invalid credentials or loop through setup automatically; if the same error recurs, stop and ask the user to resolve it before retrying. Do not promise to finish while credentials, permissions, or the provider remain unavailable.
 
 If filesystem or network access is blocked, explain that the user must manually grant the needed permission or switch the task to full access, then continue after they do so. The skill cannot change its own permissions. Do not repeatedly retry while permission remains blocked.
+
+If setup reports that it is running on a sandbox/private desktop, stop immediately. Tell the user to select Full access for this current task, then execute the same setup command again. Do not disable Windows private-desktop protections or edit the user's Codex configuration. If setup reports a PowerShell, System.Windows.Forms, or security-policy error, explain that Windows PowerShell, AppLocker, antivirus, or organization policy may be blocking the local window and provide the exact sanitized error.
 
 The Windows setup window is not available on macOS in this release. On macOS, require `CODEX_API_URL` and `CODEX_API_KEY` to already be present in the executable's environment; never collect them in chat. Environment-only `status` does not persist an initialization marker. To validate macOS initialization, run a real `generate` request for one low-quality test image, inspect it, and display it; do not claim the Windows setup workflow succeeded.
 
@@ -108,6 +112,7 @@ Read [references/batch-format.md](references/batch-format.md) before preparing a
 ## Configuration and safety
 
 - Prefer the Windows secure setup over environment variables for ordinary users.
+- For a fresh installation or update from GitHub, the repository's root `install-windows.ps1` is the deterministic entrypoint. It validates all bundled binaries, safely replaces an existing installation while retaining a backup, selects the matching Windows architecture, launches setup directly in the same turn, and requires the real test image to exist. Do not treat the standard installer's “available on the next turn” message as completed initialization.
 - Saved secure configuration takes priority as one URL/Key pair. Environment variables are a fallback only when no saved URL exists; never combine values from the two sources. If a saved pair is incomplete or a save was interrupted, run setup rather than silently using an environment key.
 - `status` never contacts the API. `initialized: true` records a previous successful setup test, not a guarantee that a key remains valid forever. Legacy saved settings and environment-only settings start unverified.
 - Never silently choose or display an API host in the setup window. Keep the API URL field empty every time setup opens, even when a saved URL or `CODEX_API_URL` exists, and require the user to enter the address supplied by their API provider.

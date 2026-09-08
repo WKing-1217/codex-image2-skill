@@ -35,12 +35,20 @@ type windowsCredential struct {
 }
 
 var (
-	advapi32DLL = syscall.NewLazyDLL("Advapi32.dll")
-	credWriteW  = advapi32DLL.NewProc("CredWriteW")
-	credReadW   = advapi32DLL.NewProc("CredReadW")
-	credDeleteW = advapi32DLL.NewProc("CredDeleteW")
-	credFree    = advapi32DLL.NewProc("CredFree")
+	advapi32DLL             = syscall.NewLazyDLL("Advapi32.dll")
+	user32DLL               = syscall.NewLazyDLL("User32.dll")
+	kernel32DLL             = syscall.NewLazyDLL("Kernel32.dll")
+	credWriteW              = advapi32DLL.NewProc("CredWriteW")
+	credReadW               = advapi32DLL.NewProc("CredReadW")
+	credDeleteW             = advapi32DLL.NewProc("CredDeleteW")
+	credFree                = advapi32DLL.NewProc("CredFree")
+	getProcessWindowStation = user32DLL.NewProc("GetProcessWindowStation")
+	getThreadDesktop        = user32DLL.NewProc("GetThreadDesktop")
+	getUserObjectInfoW      = user32DLL.NewProc("GetUserObjectInformationW")
+	getCurrentThreadID      = kernel32DLL.NewProc("GetCurrentThreadId")
 )
+
+const userObjectName = 2
 
 func writeStoredAPIKey(key string) error {
 	return writeWindowsCredential(credentialTarget, key)
@@ -122,6 +130,9 @@ func deleteWindowsCredential(targetName string) error {
 }
 
 func runSetupDialog() (setupInput, error) {
+	if err := ensureVisibleSetupDesktop(); err != nil {
+		return setupInput{}, err
+	}
 	command := exec.Command(
 		"powershell.exe",
 		"-NoProfile",
@@ -137,7 +148,13 @@ func runSetupDialog() (setupInput, error) {
 		if errors.As(err, &exitErr) && exitErr.ExitCode() == 10 {
 			return setupInput{}, errors.New("setup was cancelled")
 		}
-		return setupInput{}, errors.New("could not open the Codex Image2 setup window")
+		if errors.Is(err, exec.ErrNotFound) {
+			return setupInput{}, errors.New("could not open the setup window because Windows PowerShell is unavailable or blocked")
+		}
+		if errors.As(err, &exitErr) {
+			return setupInput{}, fmt.Errorf("could not open the setup window (PowerShell exit code %d); Windows PowerShell, System.Windows.Forms, or security policy may be blocking it", exitErr.ExitCode())
+		}
+		return setupInput{}, errors.New("could not open the setup window; Windows PowerShell or security policy may be blocking it")
 	}
 	encoded := strings.TrimSpace(string(output))
 	raw, err := base64.StdEncoding.DecodeString(encoded)
@@ -149,6 +166,51 @@ func runSetupDialog() (setupInput, error) {
 		return setupInput{}, errors.New("the setup window returned invalid data")
 	}
 	return input, nil
+}
+
+func ensureVisibleSetupDesktop() error {
+	stationHandle, _, _ := getProcessWindowStation.Call()
+	threadID, _, _ := getCurrentThreadID.Call()
+	desktopHandle, _, _ := getThreadDesktop.Call(threadID)
+	station, stationErr := windowsUserObjectName(stationHandle)
+	desktop, desktopErr := windowsUserObjectName(desktopHandle)
+	// Older Windows environments may not expose names. Let PowerShell try rather
+	// than rejecting a setup that could still work.
+	if stationErr != nil || desktopErr != nil {
+		return nil
+	}
+	if !isUserVisibleDesktop(station, desktop) {
+		return errors.New("the setup window cannot be shown from the Windows sandbox/private desktop; select Full access for this current task, then run setup again")
+	}
+	return nil
+}
+
+func windowsUserObjectName(handle uintptr) (string, error) {
+	if handle == 0 {
+		return "", errors.New("Windows desktop handle is unavailable")
+	}
+	var required uint32
+	_, _, _ = getUserObjectInfoW.Call(handle, userObjectName, 0, 0, uintptr(unsafe.Pointer(&required)))
+	if required < 2 {
+		return "", errors.New("Windows desktop name is unavailable")
+	}
+	buffer := make([]uint16, (required+1)/2)
+	result, _, callErr := getUserObjectInfoW.Call(
+		handle,
+		userObjectName,
+		uintptr(unsafe.Pointer(&buffer[0])),
+		uintptr(required),
+		uintptr(unsafe.Pointer(&required)),
+	)
+	if result == 0 {
+		return "", fmt.Errorf("could not inspect the Windows desktop: %v", callErr)
+	}
+	return syscall.UTF16ToString(buffer), nil
+}
+
+func isUserVisibleDesktop(windowStation, desktop string) bool {
+	return strings.EqualFold(strings.TrimSpace(windowStation), "WinSta0") &&
+		strings.EqualFold(strings.TrimSpace(desktop), "Default")
 }
 
 const setupDialogPowerShell = `

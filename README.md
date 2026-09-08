@@ -9,19 +9,20 @@
 Windows 用户只需把下面整行发给 Codex：
 
 ```text
-请安装并初始化这个 Skill：https://github.com/WKing-1217/codex-image2-skill
+请在当前任务的“完全访问”模式下，下载并运行根目录的 install-windows.ps1 来安装或更新并初始化这个 Skill，成功展示测试图后再结束：https://github.com/WKing-1217/codex-image2-skill
 ```
 
 接下来：
 
-1. 如果 Codex 提示权限不足，请由用户手动开启“完全访问”后让它继续。Skill 不能替用户修改权限。
-2. 安装完成后会弹出“Codex Image2 安全配置”窗口。即使已有旧配置或环境变量，“安装并初始化”也必须重新打开窗口。
-3. API 地址每次都会保持空白，请填写 API 服务商提供的完整地址。
-4. 在隐藏输入框填写 API Key，然后点击“保存并测试”。
-5. 程序会真实请求生成一张低质量测试图片（可能产生服务商费用）。只有图片可解码、成功保存且由 Codex 展示后，才算初始化完成，不需要重启。
-6. 如果返回 401、没有图片或测试失败，初始化仍未完成。Codex 会说明原因；需要修改地址或密钥时会重新打开本地窗口。取消窗口则停止本次初始化。
+1. 发送指令前，请在当前任务输入框下方选择“完全访问”。只在设置里启用该选项还不够，必须让当前任务实际处于完全访问模式；Skill 不能替用户切换。
+2. Codex 会下载仓库并运行 `install-windows.ps1`。脚本校验四个程序、安装或覆盖更新 Skill，并把旧版本保存在 `.codex\skill-backups` 以便恢复。
+3. 脚本会在同一轮直接弹出“Codex Image2 安全配置”窗口，不依赖新 Skill 到下一轮才被识别。即使已有旧配置或环境变量也会重新打开窗口。
+4. API 地址每次都会保持空白，请填写 API 服务商提供的完整地址。
+5. 在隐藏输入框填写 API Key，然后点击“保存并测试”。
+6. 程序会真实请求生成一张低质量测试图片（可能产生服务商费用）。只有图片可解码、成功保存且由 Codex 展示后，才算初始化完成，不需要重启。
+7. 如果返回 401、没有图片或测试失败，初始化仍未完成。Codex 会说明原因；需要修改地址或密钥时会重新打开本地窗口。取消窗口则停止本次初始化。
 
-安装时请让 Codex 读取并执行仓库内 `codex-image2/SKILL.md` 的初始化流程，不要仅安装文件或运行 `status` / `--dry-run` 后就宣布初始化完成。更新已安装版本时，要同时更新 Skill 说明和 `bin` 中对应系统的程序。
+不要只让标准 `skill-installer` 安装文件：它会在目标目录已存在时停止，而且新 Skill 通常到下一轮才可用。根目录安装脚本专门解决这两个问题。不要仅运行 `status` / `--dry-run` 后就宣布初始化完成。
 
 > 不要把 API Key 发到 Codex 聊天里。配置窗口会把 Key 保存到当前 Windows 用户的凭据管理器，聊天、命令行参数和 Skill 文件都不会包含明文 Key。
 
@@ -32,6 +33,8 @@ API Key 所属账户或分组必须支持 `gpt-image-2`。具体权限请向所�
 ## 功能
 
 - Windows 本地安全配置窗口
+- 一键安装或覆盖更新，旧版自动备份
+- 检测 Windows 沙箱私有桌面，避免窗口在后台无限等待
 - 真实测试生图成功才标记初始化完成，无需重启 Codex
 - 文生图
 - 单图或多图编辑
@@ -83,22 +86,22 @@ Windows 第一版使用：
 
 Windows 上如果尚未通过初始化验证（包括只有旧版配置或环境变量），Skill 会运行本地配置向导，不会要求用户在聊天中粘贴密钥。
 
-## 手动安装
+## Windows 安装脚本
 
-Windows PowerShell：
+把仓库下载或克隆到电脑后，在 Windows PowerShell 中运行：
 
 ```powershell
 git clone https://github.com/WKing-1217/codex-image2-skill.git
-Copy-Item codex-image2-skill\codex-image2 "$HOME\.codex\skills\codex-image2" -Recurse
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\codex-image2-skill\install-windows.ps1"
 ```
 
-安装后手动运行配置向导：
+脚本会完成校验、安装或更新，并立刻启动配置向导。它不会把 API Key 写进命令行或文件。仅检查下载包而不安装时可运行：
 
 ```powershell
-& "$HOME\.codex\skills\codex-image2\bin\codex-image2-windows-amd64.exe" setup
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\codex-image2-skill\install-windows.ps1" -ValidateOnly
 ```
 
-Codex 通常会自动发现新 Skill。如果没有出现在 Skill 列表中，再重新启动 Codex；安全配置和测试生图本身不需要重启。
+如果安装后 Skill 没有立即出现在列表中，下一轮对话通常会自动识别；仍未出现时再重启 Codex。安装脚本已经在当前轮直接完成配置和测试，所以不需要等 Skill 被识别才弹窗。
 
 ## CLI 用法
 
@@ -115,6 +118,12 @@ Codex 通常会自动发现新 Skill。如果没有出现在 Skill 列表中，�
 
 ```powershell
 & "codex-image2/bin/codex-image2-windows-amd64.exe" status
+```
+
+查看程序版本（排查客户仍在使用旧文件时很有用）：
+
+```powershell
+& "codex-image2/bin/codex-image2-windows-amd64.exe" version
 ```
 
 状态字段：
@@ -189,10 +198,10 @@ $env:CGO_ENABLED = "0"
 
 $env:GOOS = "windows"
 $env:GOARCH = "amd64"
-go build -trimpath -ldflags "-s -w" -o ..\bin\codex-image2-windows-amd64.exe .
+go build -buildvcs=false -trimpath -ldflags "-s -w" -o ..\bin\codex-image2-windows-amd64.exe .
 
 $env:GOARCH = "arm64"
-go build -trimpath -ldflags "-s -w" -o ..\bin\codex-image2-windows-arm64.exe .
+go build -buildvcs=false -trimpath -ldflags "-s -w" -o ..\bin\codex-image2-windows-arm64.exe .
 Pop-Location
 ```
 
@@ -203,6 +212,7 @@ Push-Location codex-image2\src
 go test ./...
 go vet ./...
 Pop-Location
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\install-windows.ps1" -ValidateOnly
 ```
 
 ## 常见问题
@@ -216,6 +226,14 @@ Pop-Location
 ### 为什么没有直接在聊天里询问密钥？
 
 聊天内容可能进入历史记录、截图或调试信息。安全配置窗口使用隐藏输入框，并将 Key 保存到 Windows Credential Manager。
+
+### 安装时为什么没有看到配置窗口？
+
+- 确认当前任务实际选择了“完全访问”，而不是只在设置里启用了该选项。
+- 不要在 WSL、SSH、Codex cloud 或其他无桌面的环境运行 Windows 配置程序。
+- 新版程序检测到 Windows 沙箱的私有桌面会立即报出明确错误，不会在用户看不到的窗口上无限等待。
+- 如果提示 PowerShell、System.Windows.Forms 或安全策略错误，检查 Windows PowerShell、AppLocker、杀毒软件和单位设备策略。
+- 如果重复安装，请运行根目录 `install-windows.ps1`；标准 Skill 安装器不会覆盖已经存在的目录。
 
 ### 接口返回 401、403 或 404
 

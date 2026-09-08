@@ -205,6 +205,7 @@ func clearAPIConfig() error {
 
 func configStatus() map[string]any {
 	result := configurationStatus(localConfigurationStore{}, os.Getenv)
+	result["cli_version"] = cliVersion
 	path, err := settingsPath()
 	if err == nil {
 		result["settings_path"] = path

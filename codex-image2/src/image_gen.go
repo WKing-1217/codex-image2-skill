@@ -27,6 +27,7 @@ import (
 )
 
 const (
+	cliVersion     = "1.1.0"
 	defaultModel   = "gpt-image-2"
 	defaultSize    = "1024x1024"
 	defaultQuality = "auto"
@@ -643,7 +644,7 @@ func runReset(argv []string) error {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "Usage: codex-image2 <setup|status|reset|generate|generate-batch|edit> [options]")
+	fmt.Fprintln(os.Stderr, "Usage: codex-image2 <setup|status|reset|version|generate|generate-batch|edit> [options]")
 }
 
 func main() {
@@ -659,6 +660,9 @@ func main() {
 		err = runStatus(os.Args[2:])
 	case "reset":
 		err = runReset(os.Args[2:])
+	case "version", "--version":
+		printJSON(map[string]any{"version": cliVersion})
+		return
 	case "generate":
 		err = runGenerate(os.Args[2:])
 	case "generate-batch":

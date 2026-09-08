@@ -50,3 +50,38 @@ func TestSetupDialogDoesNotPrefillAPIURL(t *testing.T) {
 		}
 	}
 }
+
+func TestUserVisibleDesktopDetection(t *testing.T) {
+	for _, test := range []struct {
+		station string
+		desktop string
+		want    bool
+	}{
+		{"WinSta0", "Default", true},
+		{"winsta0", "default", true},
+		{"CodexSandbox", "Private-1", false},
+		{"WinSta0", "Private-1", false},
+		{"Service-0x0-3e7$", "Default", false},
+	} {
+		if got := isUserVisibleDesktop(test.station, test.desktop); got != test.want {
+			t.Fatalf("isUserVisibleDesktop(%q, %q) = %v, want %v", test.station, test.desktop, got, test.want)
+		}
+	}
+}
+
+func TestCurrentTestProcessUsesVisibleDesktop(t *testing.T) {
+	stationHandle, _, _ := getProcessWindowStation.Call()
+	threadID, _, _ := getCurrentThreadID.Call()
+	desktopHandle, _, _ := getThreadDesktop.Call(threadID)
+	station, stationErr := windowsUserObjectName(stationHandle)
+	desktop, desktopErr := windowsUserObjectName(desktopHandle)
+	if stationErr != nil || desktopErr != nil {
+		t.Skipf("desktop identity unavailable: station=%v desktop=%v", stationErr, desktopErr)
+	}
+	if !isUserVisibleDesktop(station, desktop) {
+		t.Skipf("tests are running on a non-interactive desktop %q/%q", station, desktop)
+	}
+	if err := ensureVisibleSetupDesktop(); err != nil {
+		t.Fatalf("visible desktop was rejected: %v", err)
+	}
+}
